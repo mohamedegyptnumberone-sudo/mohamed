@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Private Voice Room · P2P</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 20% 20%, #1e293b, #0f172a 70%);
+    color: #e2e8f0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+  }
+  .card {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(30, 41, 59, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 1.75rem;
+    padding: 2rem 1.75rem;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+    text-align: center;
+  }
+  @media (max-width: 420px) {
+    .card { padding: 1.5rem 1.25rem; border-radius: 1.35rem; }
+  }
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 1.5rem; }
+
+  .lock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    margin-bottom: 1.5rem;
+  }
+
+  label {
+    display: block;
+    text-align: left;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.03em;
+  }
+  input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(15, 23, 42, 0.7);
+    color: #e2e8f0;
+    font-size: 16px; /* prevents iOS zoom on focus */
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    margin-bottom: 0.9rem;
+    font-family: inherit;
+  }
+  input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  }
+
+  .field { margin-bottom: 0.35rem; }
+
+  .btn-row { display: flex; gap: 0.6rem; margin-top: 0.6rem; flex-wrap: wrap; }
+  button.btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border-radius: 0.9rem;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+    font-family: inherit;
+    color: inherit;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    box-shadow: 0 10px 20px -8px rgba(99, 102, 241, 0.6);
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 26px -8px rgba(99, 102, 241, 0.8); }
+  .btn-secondary {
+    background: rgba(148, 163, 184, 0.12);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
+  .btn-secondary:hover:not(:disabled) { background: rgba(148, 163, 184, 0.2); }
+  .btn-hang {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    flex: 0 0 auto;
+    min-width: 110px;
+  }
+  .btn-hang:hover:not(:disabled) { background: rgba(239, 68, 68, 0.25); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  .divider {
+    display: flex; align-items: center; gap: 0.75rem;
+    color: #64748b; font-size: 0.72rem; margin: 1.1rem 0 0.9rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px;
+    background: rgba(148, 163, 184, 0.18);
+  }
+
+  .invite-box {
+    display: none;
+    margin-top: 1rem;
+    padding: 0.9rem;
+    border-radius: 1rem;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    text-align: left;
+  }
+  .invite-box.show { display: block; }
+  .invite-box .invite-label {
+    font-size: 0.7rem; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+  }
+  .invite-link {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    color: #93c5fd;
+    word-break: break-all;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.6rem;
+    max-height: 5.5rem;
+    overflow-y: auto;
+    line-height: 1.4;
+  }
+  .invite-actions { display: flex; gap: 0.5rem; }
+  .invite-actions button {
+    flex: 1;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.82rem;
+    border-radius: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    transition: background 0.2s;
+  }
+  .btn-copy {
+    background: rgba(96, 165, 250, 0.18);
+    color: #93c5fd;
+    border: 1px solid rgba(96, 165, 250, 0.3) !important;
+  }
+  .btn-copy:hover { background: rgba(96, 165, 250, 0.28); }
+  .btn-share {
+    background: rgba(167, 139, 250, 0.18);
+    color: #c4b5fd;
+    border: 1px solid rgba(167, 139, 250, 0.3) !important;
+  }
+  .btn-share:hover { background: rgba(167, 139, 250, 0.28); }
+
+  .status {
+    margin-top: 1.5rem;
+    padding: 0.95rem;
+    border-radius: 1rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+  }
+  .status-line {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.6rem; font-size: 0.88rem; color: #cbd5e1;
+    word-break: break-word; text-align: center;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #64748b; flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .dot.connecting { background: #f59e0b; animation: pulse 1.2s infinite; }
+  .dot.connected  { background: #22c55e; animation: pulse 1.6s infinite; }
+  .dot.error      { background: #ef4444; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+    70%  { box-shadow: 0 0 0 10px transparent; opacity: 0.9; }
+    100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+  }
+  .meter {
+    margin-top: 0.85rem; height: 8px;
+    background: rgba(148, 163, 184, 0.15);
+    border-radius: 6px; overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+    transition: width 0.1s linear;
+  }
+  .footer {
+    margin-top: 1.4rem; font-size: 0.72rem;
+    color: #64748b; line-height: 1.6;
+  }
+  .footer b { color: #94a3b8; }
+
+  .toast {
+    position: fixed;
+    left: 50%; bottom: max(1.5rem, env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(200%);
+    background: rgba(30, 41, 59, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
+    padding: 0.7rem 1.2rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    z-index: 100;
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+    pointer-events: none;
+    box-shadow: 0 10px 30px -5px rgba(0,0,0,0.6);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔒 Private Voice Room</h1>
+    <p class="sub">End-to-end · peer-to-peer · no backend</p>
+    <div class="lock-badge">🔐 Secret stays in your link · never on a server</div>
+
+    <div class="field">
+      <label for="nameInput">Your name</label>
+      <input id="nameInput" type="text" placeholder="e.g. Mohamed" autocomplete="off" maxlength="24" />
+    </div>
+
+    <div class="btn-row">
+      <button id="createBtn" class="btn btn-primary">✨ Create room</button>
+      <button id="joinBtn" class="btn btn-secondary">🔗 Join room</button>
+    </div>
+
+    <div class="divider">or paste invite link</div>
+
+    <input id="linkInput" type="text" placeholder="https://...#r=...&k=..." autocomplete="off" inputmode="url" />
+
+    <div id="inviteBox" class="invite-box">
+      <div class="invite-label">Your invitation link</div>
+      <div id="inviteLink" class="invite-link"></div>
+      <div class="invite-actions">
+        <button id="copyBtn" class="btn-copy">📋 Copy</button>
+        <button id="shareBtn" class="btn-share">📤 Share</button>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top: 1rem;">
+      <button id="hangBtn" class="btn btn-hang" disabled>Hang up</button>
+    </div>
+
+    <div class="status">
+      <div class="status-line">
+        <span id="dot" class="dot"></span>
+        <span id="statusText">Idle</span>
+      </div>
+      <div class="meter" title="Your mic level">
+        <div id="meterFill" class="meter-fill"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      The secret lives only in the part of the URL after <b>#</b>, which browsers never send to a server.<br>
+      Only someone with the exact link can join.
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <script>
+  (() => {
+    // ---------- DOM ----------
+    const nameInput  = document.getElementById('nameInput');
+    const createBtn  = document.getElementById('createBtn');
+    const joinBtn    = document.getElementById('joinBtn');
+    const linkInput  = document.getElementById('linkInput');
+    const inviteBox  = document.getElementById('inviteBox');
+    const inviteLink = document.getElementById('inviteLink');
+    const copyBtn    = document.getElementById('copyBtn');
+    const shareBtn   = document.getElementById('shareBtn');
+    const hangBtn    = document.getElementById('hangBtn');
+    const dot        = document.getElementById('dot');
+    const statusText = document.getElementById('statusText');
+    const meterFill  = document.getElementById('meterFill');
+    const toastEl    = document.getElementById('toast');
+
+    // ---------- State ----------
+    let peer = null;
+    let currentCall = null;
+    let dataConn = null;
+    let localStream = null;
+    let audioEl = null;
+    let audioCtx = null, analyser = null, meterRAF = null;
+    let dialRetryTimer = null;
+    let peerId = null, targetId = null;
+    let authKey = null;         // CryptoKey used for HMAC challenge/response
+    let authOk = false;
+    let myNonce = null;
+    let theirNonce = null;
+    let myName = '';
+    let theirName = '';
+    let active = false;
+
+    // ---------- Toast ----------
+    let toastTimer = null;
+    const toast = (msg, ms = 1800) => {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+    };
+
+    const setStatus = (text, cls = '') => {
+      statusText.textContent = text;
+      dot.className = 'dot ' + cls;
+    };
+
+    // ---------- Crypto helpers ----------
+    const b64url = (bytes) => {
+      let s = '';
+      for (const b of bytes) s += String.fromCharCode(b);
+      return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    };
+    const fromB64url = (s) => {
+      s = s.replace(/-/g,'+').replace(/_/g,'/');
+      while (s.length % 4) s += '=';
+      const bin = atob(s);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    };
+    const randomBytes = (n) => {
+      const b = new Uint8Array(n);
+      crypto.getRandomValues(b);
+      return b;
+    };
+    const buf2hex = (buf) =>
+      [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+
+    // Derive two PeerJS IDs + one HMAC key from (roomId, secret) via HKDF.
+    const deriveCredentials = async (roomId, secretBytes) => {
+      const enc = new TextEncoder();
+      const baseKey = await crypto.subtle.importKey(
+        'raw', secretBytes, 'HKDF', false, ['deriveBits', 'deriveKey']
+      );
+      // Two independent 128-bit ID seeds
+      const idBits = await crypto.subtle.deriveBits(
+        { name: 'HKDF', hash: 'SHA-256', salt: enc.encode(roomId), info: enc.encode('peer-id') },
+        baseKey, 256
+      );
+      const hex = buf2hex(idBits);
+      const idA = 'p2p-' + hex.slice(0, 28);
+      const idB = 'p2p-' + hex.slice(28, 56);
+      // HMAC key for challenge/response
+      const key = await crypto.subtle.deriveKey(
+        { name: 'HKDF', hash: 'SHA-256', salt: enc.encode(roomId), info: enc.encode('auth') },
+        baseKey, { name: 'HMAC', hash: 'SHA-256', length: 256 }, false, ['sign', 'verify']
+      );
+      return { idA, idB, key };
+    };
+
+    const hmac = async (key, data) => {
+      const sig = await crypto.subtle.sign('HMAC', key, data);
+      return new Uint8Array(sig);
+    };
+
+    const makeNonce = () => b64url(randomBytes(16));
+    const equalBytes = (a, b) => {
+      if (a.length !== b.length) return false;
+      let d = 0;
+      for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+      return d === 0;
+    };
+
+    // ---------- Invite link parsing ----------
+    const parseInvite = (s) => {
+      if (!s) return null;
+      s = s.trim();
+      // Accept full URL with fragment or bare "#r=...&k=..."
+      let frag = '';
+      const hashIdx = s.indexOf('#');
+      if (hashIdx >= 0) frag = s.slice(hashIdx + 1);
+      else if (s.startsWith('r=') || s.startsWith('k=')) frag = s;
+      if (!frag) return null;
+      const params = new URLSearchParams(frag);
+      const r = params.get('r');
+      const k = params.get('k');
+      if (!r || !k) return null;
+      try {
+        const secretBytes = fromB64url(k);
+        if (secretBytes.length < 16) return null;
+        return { roomId: r, secretBytes };
+      } catch { return null; }
+    };
+
+    const buildInvite = (roomId, secretBytes) => {
+      const base = location.origin + location.pathname;
+      return `${base}#r=${roomId}&k=${b64url(secretBytes)}`;
+    };
+
+    // ---------- Audio element ----------
+    const ensureAudioEl = () => {
+      if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.autoplay = true;
+        audioEl.playsInline = true;
+        audioEl.setAttribute('playsinline', '');
+        document.body.appendChild(audioEl);
+      }
+      return audioEl;
+    };
+    const playRemote = (stream) => {
+      const el = ensureAudioEl();
+      el.srcObject = stream;
+      el.play().catch(err => console.warn('Autoplay blocked:', err));
+    };
+
+    // ---------- Mic meter ----------
+    const startMeter = (stream) => {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = audioCtx.createMediaStreamSource(stream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          analyser.getByteFrequencyData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i];
+          const avg = sum / data.length;
+          meterFill.style.width = Math.min(100, (avg / 128) * 100) + '%';
+          meterRAF = requestAnimationFrame(tick);
+        };
+        tick();
+      } catch (e) { /* ignore */ }
+    };
+    const stopMeter = () => {
+      if (meterRAF) cancelAnimationFrame(meterRAF);
+      meterRAF = null;
+      meterFill.style.width = '0%';
+      if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
+      analyser = null;
+    };
+
+    // ---------- Mic ----------
+    const getMic = async () => {
+      if (localStream) return localStream;
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false
+      });
+      startMeter(localStream);
+      return localStream;
+    };
+
+    // ---------- Cleanup ----------
+    const cleanup = (destroyPeer = true) => {
+      active = false;
+      authOk = false;
+      myNonce = theirNonce = null;
+      if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
+      if (dataConn) { try { dataConn.close(); } catch(e){} dataConn = null; }
+      if (currentCall) { try { currentCall.close(); } catch(e){} currentCall = null; }
+      if (destroyPeer && peer) { try { peer.destroy(); } catch(e){} peer = null; }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      if (audioEl) audioEl.srcObject = null;
+      stopMeter();
+      hangBtn.disabled = true;
+      createBtn.disabled = false;
+      joinBtn.disabled = false;
+      nameInput.disabled = false;
+      linkInput.disabled = false;
+    };
+
+    // ---------- Data connection (auth channel) ----------
+    const setupDataConn = (conn) => {
+      dataConn = conn;
+      conn.on('open', async () => {
+        // Send our nonce + name
+        myNonce = makeNonce();
+        try {
+          conn.send({ t: 'hello', nonce: myNonce, name: myName });
+        } catch(e) {}
+      });
+      conn.on('data', async (msg) => {
+        if (!msg || typeof msg !== 'object') return;
+        if (msg.t === 'hello') {
+          theirNonce = msg.nonce;
+          theirName = String(msg.name || 'Peer').slice(0, 24) || 'Peer';
+          // Reply with HMAC(key, theirNonce) + our nonce + name
+          const proof = await hmac(authKey, new TextEncoder().encode(theirNonce));
+          try { conn.send({ t: 'proof', proof: b64url(proof), nonce: myNonce, name: myName }); } catch(e){}
+        } else if (msg.t === 'proof') {
+          if (!theirNonce) return;
+          try {
+            const expected = await hmac(authKey, new TextEncoder().encode(theirNonce));
+            const got = fromB64url(msg.proof || '');
+            if (!equalBytes(expected, got)) {
+              setStatus('Authentication failed — wrong key', 'error');
+              toast('❌ Authentication failed');
+              setTimeout(() => cleanup(), 800);
+              return;
+            }
+            authOk = true;
+            theirName = String(msg.name || theirName || 'Peer').slice(0, 24) || 'Peer';
+            // If we were the caller (no call yet) — but call is handled elsewhere
+            setStatus(`✅ Verified · ${theirName}`, 'connected');
+          } catch (e) {
+            setStatus('Auth error', 'error');
+          }
+        }
+      });
+      conn.on('close', () => {
+        if (active && authOk) {
+          setStatus('Peer disconnected', '');
+          cleanup();
+          setStatus('Idle', '');
+        }
+      });
+      conn.on('error', (err) => console.warn('Data conn error', err));
+    };
+
+    // ---------- Try to dial the other side ----------
+    const tryDial = (target) => {
+      if (!peer || peer.destroyed || !active) return;
+      if (currentCall && currentCall.open) return;
+      if (peer.id === target) return;
+
+      // Open data connection for auth first
+      if (!dataConn || dataConn.open === false) {
+        try {
+          const conn = peer.connect(target, { reliable: true });
+          setupDataConn(conn);
+        } catch(e) {}
+      }
+      // Also attempt the call (will only be answered by the other side if they're ready)
+      try {
+        const call = peer.call(target, localStream);
+        if (call) {
+          setStatus(`Calling peer…`, 'connecting');
+          wireCall(call);
+        }
+      } catch(e) {}
+    };
+
+    const wireCall = (call) => {
+      currentCall = call;
+      call.on('stream', (remoteStream) => {
+        playRemote(remoteStream);
+        const nameLabel = theirName || 'peer';
+        setStatus(`🔊 Connected · ${nameLabel}`, 'connected');
+      });
+      call.on('close', () => {
+        setStatus('Call ended', '');
+        cleanup();
+      });
+      call.on('error', (err) => {
+        console.warn('Call error', err);
+      });
+    };
+
+    // ---------- Core: start the session given credentials ----------
+    const startSession = async ({ roomId, secretBytes, role }) => {
+      myName = (nameInput.value.trim() || (role === 'create' ? 'Host' : 'Guest')).slice(0, 24);
+
+      createBtn.disabled = true;
+      joinBtn.disabled = true;
+      nameInput.disabled = true;
+      linkInput.disabled = true;
+      setStatus('Requesting microphone…', 'connecting');
+
+      try { await getMic(); }
+      catch (err) {
+        setStatus('Microphone permission denied', 'error');
+        createBtn.disabled = false;
+        joinBtn.disabled = false;
+        nameInput.disabled = false;
+        linkInput.disabled = false;
+        return;
+      }
+
+      setStatus('Deriving secure keys…', 'connecting');
+      let creds;
+      try {
+        creds = await deriveCredentials(roomId, secretBytes);
+      } catch (e) {
+        setStatus('Crypto error', 'error');
+        cleanup();
+        return;
+      }
+      const { idA, idB, key } = creds;
+      authKey = key;
+
+      const preferred = role === 'create' ? idA : idB;
+      const fallback  = role === 'create' ? idB : idA;
+
+      setStatus('Connecting to signaling…', 'connecting');
+      active = true;
+
+      const makePeer = (id) => new Peer(id, {
+        debug: 0,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+          ]
+        }
+      });
+
+      const attach = (p, mySlot) => {
+        p.on('open', (myId) => {
+          peerId = myId;
+          targetId = (myId === idA) ? idB : idA;
+          setStatus(`Waiting for the other side…`, 'connecting');
+          hangBtn.disabled = false;
+
+          const dialLoop = () => {
+            if (!peer || peer.destroyed || !active) return;
+            if (currentCall && currentCall.open && authOk) return;
+            tryDial(targetId);
+            dialRetryTimer = setTimeout(dialLoop, 2500);
+          };
+          dialLoop();
+        });
+
+        p.on('call', async (call) => {
+          setStatus('Incoming call — answering…', 'connecting');
+          try {
+            const stream = await getMic();
+            call.answer(stream);
+            wireCall(call);
+          } catch (err) {
+            setStatus('Failed to answer call', 'error');
+          }
+        });
+
+        p.on('connection', (conn) => {
+          setupDataConn(conn);
+        });
+
+        p.on('error', (err) => {
+          if (err.type === 'unavailable-id') {
+            if (peer && peer.id !== fallback) {
+              try { peer.destroy(); } catch(e){}
+              peer = makePeer(fallback);
+              attach(peer, fallback);
+            }
+          } else if (err.type === 'peer-unavailable') {
+            // retry loop handles it
+          } else if (err.type === 'network' || err.type === 'server-error') {
+            setStatus('Network issue — retrying…', 'connecting');
+          } else if (err.type !== 'peer-unavailable') {
+            console.warn('Peer error:', err.type);
+          }
+        });
+      };
+
+      peer = makePeer(preferred);
+      attach(peer, preferred);
+    };
+
+    // ---------- Create room ----------
+    const createRoom = async () => {
+      const roomId = b64url(randomBytes(9));   // 72 bits, URL-safe
+      const secret = randomBytes(32);           // 256-bit secret
+      const link = buildInvite(roomId, secret);
+
+      // Try to update the address bar (doesn't reload)
+      try { history.replaceState(null, '', link); } catch(e){}
+
+      inviteLink.textContent = link;
+      inviteBox.classList.add('show');
+
+      await startSession({ roomId, secretBytes: secret, role: 'create' });
+    };
+
+    // ---------- Join room ----------
+    const joinRoom = async (rawLink) => {
+      const parsed = parseInvite(rawLink || linkInput.value);
+      if (!parsed) {
+        setStatus('Invalid or missing invite link', 'error');
+        toast('❌ Invalid invite link');
+        return;
+      }
+      const link = buildInvite(parsed.roomId, parsed.secretBytes);
+      try { history.replaceState(null, '', link); } catch(e){}
+      await startSession({ roomId: parsed.roomId, secretBytes: parsed.secretBytes, role: 'join' });
+    };
+
+    // ---------- Hang ----------
+    const hangup = () => {
+      setStatus('Hanging up…', '');
+      cleanup();
+      inviteBox.classList.remove('show');
+      try { history.replaceState(null, '', location.origin + location.pathname); } catch(e){}
+      setStatus('Idle', '');
+    };
+
+    // ---------- Clipboard / Share ----------
+    const copyInvite = async () => {
+      const text = inviteLink.textContent;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        toast('📋 Link copied');
+      } catch (e) {
+        toast('Copy failed — select manually');
+      }
+    };
+
+    const shareInvite = async () => {
+      const text = inviteLink.textContent;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Private Voice Room', text: 'Join my private voice room:', url: text });
+        } catch(e) { /* user cancelled */ }
+      } else {
+        copyInvite();
+      }
+    };
+
+    // ---------- Events ----------
+    createBtn.addEventListener('click', createRoom);
+    joinBtn.addEventListener('click', () => joinRoom());
+    hangBtn.addEventListener('click', hangup);
+    copyBtn.addEventListener('click', copyInvite);
+    shareBtn.addEventListener('click', shareInvite);
+    linkInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !joinBtn.disabled) joinRoom();
+    });
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !createBtn.disabled) createRoom();
+    });
+    window.addEventListener('beforeunload', () => cleanup());
+
+    // ---------- Auto-join if URL has fragment ----------
+    (async () => {
+      if (!window.crypto?.subtle) {
+        setStatus('Browser not supported (needs HTTPS)', 'error');
+        return;
+      }
+      const parsed = parseInvite(location.hash);
+      if (parsed) {
+        setStatus('Invite detected — auto joining…', 'connecting');
+        // Slight delay so user sees the message
+        setTimeout(() => joinRoom(location.hash), 400);
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>
